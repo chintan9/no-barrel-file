@@ -1,0 +1,35 @@
+{
+  "name": "no-barrel-file",
+  "version": "0.0.0",
+  "description": "A CLI tool for removing barrel file imports in JavaScript/TypeScript projects.",
+  "main": "dist/index.js",
+  "bin": {
+    "no-barrel-file": "dist/index.js"
+  },
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "barrel-file",
+    "imports",
+    "typescript",
+    "javascript",
+    "performance"
+  ],
+  "author": "chintan9",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "fast-glob": "^3.3.2",
+    "ignore": "^5.3.1",
+    "jsonc-parser": "^3.2.1",
+    "ts-morph": "^22.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
