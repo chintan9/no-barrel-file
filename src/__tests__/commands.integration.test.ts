@@ -1,6 +1,6 @@
 const { vol } = require("memfs");
 import fg from "fast-glob";
-import { program } from "../src/index";
+import { program } from "../../src/index";
 
 // Mock dependencies
 jest.mock("fs/promises", () => require("memfs").promises);

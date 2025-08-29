@@ -1,7 +1,7 @@
 const { vol } = require("memfs");
 import fg from "fast-glob";
-import { Parser } from "../../src/lib/parser";
-import { Ignorer } from "../../src/lib/ignorer";
+import { Parser } from "../../lib/parser";
+import { Ignorer } from "../../lib/ignorer";
 
 // Mock the modules
 jest.mock("fs/promises", () => require("memfs").promises);

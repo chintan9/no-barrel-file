@@ -1,17 +1,10 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
-  // Use the ts-jest preset
   preset: "ts-jest",
-  // The environment in which the tests should be run
   testEnvironment: "node",
-  // A map from regular expressions to paths to transformers
   transform: {
-    "^.+\\.tsx?$": [
-      "ts-jest",
-      {
-        // ts-jest configuration goes here
-        tsconfig: "tsconfig.json"
-      }
-    ]
-  }
+    "^.+\\.tsx?$": ["ts-jest", { tsconfig: "tsconfig.json" }]
+  },
+  // ADD THIS LINE: Tells Jest to ignore the dist and node_modules directories when looking for tests.
+  testPathIgnorePatterns: ["/node_modules/", "/dist/"]
 };
