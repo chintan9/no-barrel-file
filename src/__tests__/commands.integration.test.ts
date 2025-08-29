@@ -1,20 +1,22 @@
 const { vol } = require("memfs");
 import fg from "fast-glob";
-import { program } from "../../src/index";
+import { program } from "../index"; // Corrected import path
 
 // Mock dependencies
-jest.mock("fs/promises", () => require("memfs").promises);
+// THIS IS THE CRITICAL FIX: Mock both sync and async fs to point to memfs
+jest.mock("fs", () => require("memfs").fs);
+jest.mock("fs/promises", () => require("memfs").fs.promises);
 jest.mock("fast-glob");
 
 const mockedFg = fg as unknown as jest.Mock;
 
 // Capture console.log output
-let consoleOutput: any[]; // Use 'any[]' to avoid type issues with console.log
+let consoleOutput: any[];
 const mockedLog = (output: any) => consoleOutput.push(output);
 
 describe("CLI Commands (Integration)", () => {
   beforeEach(() => {
-    vol.reset();
+    vol.reset(); // Clears the in-memory file system before each test
     mockedFg.mockClear();
     consoleOutput = [];
     jest.spyOn(console, "log").mockImplementation(mockedLog);
@@ -45,7 +47,6 @@ describe("CLI Commands (Integration)", () => {
     ];
     await program.parseAsync(argv);
 
-    // CORRECTED: The output is a number, not a string.
     expect(consoleOutput[0]).toBe(1);
   });
 
@@ -78,15 +79,16 @@ describe("CLI Commands (Integration)", () => {
     const projectFiles = {
       "/project/src/components/button.ts": `export const Button = {};`,
       "/project/src/components/index.ts": `export * from './button';`,
-      "/project/src/app.ts": `import { Button } from './components';`,
-      "/project/tsconfig.json": `{"compilerOptions":{"baseUrl":"src"}}`
+      "/project/src/app.ts": `import { Button } from 'components';`,
+      "/project/tsconfig.json": `{
+        "include": ["src/**/*.ts"],
+        "compilerOptions": {
+          "baseUrl": "src",
+          "paths": { "components": ["components/index"] }
+        }
+      }`
     };
     vol.fromJSON(projectFiles, "/project");
-
-    // The replace command will glob for all TS files to analyze
-    mockedFg.mockResolvedValue(
-      Object.keys(projectFiles).filter((f) => f.endsWith(".ts"))
-    );
 
     const argv = [
       "node",
@@ -95,15 +97,13 @@ describe("CLI Commands (Integration)", () => {
       "--root-path",
       "/project",
       "--alias-config-path",
-      "tsconfig.json",
-      "--extensions",
-      ".ts"
+      "tsconfig.json"
     ];
     await program.parseAsync(argv);
 
     const updatedContent = vol.readFileSync("/project/src/app.ts", "utf-8");
 
-    expect(updatedContent).not.toContain(`from './components'`);
+    expect(updatedContent).not.toContain(`from 'components'`);
     expect(updatedContent).toContain(`from "./components/button"`);
     expect(consoleOutput.join("\n")).toContain("1 files updated");
   });

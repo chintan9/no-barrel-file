@@ -1,10 +1,6 @@
 import { Command } from "commander";
 import { Project } from "ts-morph";
-import fg from "fast-glob";
 import path from "path";
-import fs from "fs/promises"; // Use the mocked fs
-import { Ignorer } from "../lib/ignorer";
-import { AliasResolver } from "../lib/resolver";
 
 export function configureReplaceCommand(program: Command) {
   program
@@ -18,46 +14,30 @@ export function configureReplaceCommand(program: Command) {
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
 
-      // CORRECTED: Force ts-morph to use an in-memory file system for tests
-      const project = new Project({
-        useInMemoryFileSystem: true,
-        compilerOptions: {
-          // You might need to adjust this based on your project structure
-          baseUrl: globalOptions.rootPath
-        }
-      });
-
-      const ignorer = await Ignorer.create(
-        globalOptions.rootPath,
-        globalOptions.ignorePaths.split(","),
-        globalOptions.gitignorePath
-      );
-
-      const extensions = globalOptions.extensions
-        .split(",")
-        .map((e: string) => (e.startsWith(".") ? e.slice(1) : e))
-        .join(",");
-      const sourceFilesPaths = await fg(`**/*.{${extensions}}`, {
-        cwd: globalOptions.rootPath,
-        absolute: true,
-        ignore: ["node_modules/**"]
-      });
-
-      // CORRECTED: Manually load all source files into ts-morph's in-memory system
-      for (const filePath of sourceFilesPaths) {
-        if (ignorer.ignores(filePath)) continue;
-        const content = await fs.readFile(filePath, "utf-8");
-        project.createSourceFile(filePath, content);
+      // **FIX:** Add a check to ensure the required option is provided.
+      if (!cmdOptions.aliasConfigPath) {
+        console.error(
+          "Error: The --alias-config-path <path> option is required for the replace command."
+        );
+        process.exit(1); // Exit with an error code
       }
 
-      let updatedFilesCount = 0;
+      const tsConfigPath = path.join(
+        globalOptions.rootPath,
+        cmdOptions.aliasConfigPath
+      );
 
+      const project = new Project({
+        tsConfigFilePath: tsConfigPath
+      });
+
+      let updatedFilesCount = 0;
       const projectSourceFiles = project.getSourceFiles();
+
       for (const sourceFile of projectSourceFiles) {
         let fileWasModified = false;
-
-        // ... (The rest of the logic remains the same)
         const importDeclarations = sourceFile.getImportDeclarations();
+
         for (const importDecl of importDeclarations) {
           const importSourceFile = importDecl.getModuleSpecifierSourceFile();
           if (!importSourceFile) continue;
@@ -115,9 +95,7 @@ export function configureReplaceCommand(program: Command) {
         }
 
         if (fileWasModified) {
-          // Save the changes back to the in-memory file system
-          const updatedContent = sourceFile.getFullText();
-          await fs.writeFile(sourceFile.getFilePath(), updatedContent);
+          await sourceFile.save();
           updatedFilesCount++;
         }
       }
