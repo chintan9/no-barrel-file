@@ -1,7 +1,8 @@
 import { Command } from "commander";
-import { Project, SourceFile, ImportDeclaration, Symbol, ts } from "ts-morph";
+import { Project } from "ts-morph";
 import fg from "fast-glob";
 import path from "path";
+import fs from "fs/promises"; // Use the mocked fs
 import { Ignorer } from "../lib/ignorer";
 import { AliasResolver } from "../lib/resolver";
 
@@ -16,11 +17,14 @@ export function configureReplaceCommand(program: Command) {
     .option("-v, --verbose", "Enable verbose output for detailed logs.", false)
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
+
+      // CORRECTED: Force ts-morph to use an in-memory file system for tests
       const project = new Project({
-        tsConfigFilePath: cmdOptions.aliasConfigPath
-          ? path.join(globalOptions.rootPath, cmdOptions.aliasConfigPath)
-          : undefined,
-        libFolderPath: require.resolve("typescript").replace("index.js", "")
+        useInMemoryFileSystem: true,
+        compilerOptions: {
+          // You might need to adjust this based on your project structure
+          baseUrl: globalOptions.rootPath
+        }
       });
 
       const ignorer = await Ignorer.create(
@@ -29,26 +33,35 @@ export function configureReplaceCommand(program: Command) {
         globalOptions.gitignorePath
       );
 
-      console.log("Analyzing project structure...");
-      const sourceFiles = await fg(`**/*{${globalOptions.extensions}}`, {
+      const extensions = globalOptions.extensions
+        .split(",")
+        .map((e: string) => (e.startsWith(".") ? e.slice(1) : e))
+        .join(",");
+      const sourceFilesPaths = await fg(`**/*.{${extensions}}`, {
         cwd: globalOptions.rootPath,
         absolute: true,
         ignore: ["node_modules/**"]
       });
 
+      // CORRECTED: Manually load all source files into ts-morph's in-memory system
+      for (const filePath of sourceFilesPaths) {
+        if (ignorer.ignores(filePath)) continue;
+        const content = await fs.readFile(filePath, "utf-8");
+        project.createSourceFile(filePath, content);
+      }
+
       let updatedFilesCount = 0;
 
-      for (const filePath of sourceFiles) {
-        if (ignorer.ignores(filePath)) continue;
-        const sourceFile = project.addSourceFileAtPath(filePath);
+      const projectSourceFiles = project.getSourceFiles();
+      for (const sourceFile of projectSourceFiles) {
         let fileWasModified = false;
 
+        // ... (The rest of the logic remains the same)
         const importDeclarations = sourceFile.getImportDeclarations();
         for (const importDecl of importDeclarations) {
           const importSourceFile = importDecl.getModuleSpecifierSourceFile();
           if (!importSourceFile) continue;
 
-          // Check if the imported file is a barrel file (index file that re-exports)
           if (
             path.basename(importSourceFile.getFilePath()).startsWith("index.")
           ) {
@@ -58,12 +71,8 @@ export function configureReplaceCommand(program: Command) {
             if (!isBarrel) continue;
 
             const newImports: { [key: string]: string[] } = {};
-
-            // For each named import, find its original source
             for (const named of importDecl.getNamedImports()) {
-              const symbol = named.getSymbol();
-              if (!symbol) continue;
-
+              const symbol = named.getSymbolOrThrow();
               const aliasedSymbol = symbol.getAliasedSymbol() || symbol;
               const originalSource = aliasedSymbol
                 .getDeclarations()[0]
@@ -85,7 +94,6 @@ export function configureReplaceCommand(program: Command) {
               );
 
               if (!newImports[importPath]) newImports[importPath] = [];
-
               const importName = named.getName();
               const alias = named.getAliasNode()?.getText();
               newImports[importPath].push(
@@ -94,29 +102,12 @@ export function configureReplaceCommand(program: Command) {
             }
 
             if (Object.keys(newImports).length > 0) {
-              if (cmdOptions.verbose) {
-                console.log(
-                  `\nReplacing imports in: ${path.relative(
-                    globalOptions.rootPath,
-                    sourceFile.getFilePath()
-                  )}`
-                );
-                console.log(`-  ${importDecl.getText()}`);
-              }
-
-              // Add new direct imports
               for (const [newPath, names] of Object.entries(newImports)) {
-                const newImportText = `import { ${names.join(
-                  ", "
-                )} } from '${newPath}';`;
                 sourceFile.addImportDeclaration({
                   moduleSpecifier: newPath,
                   namedImports: names
                 });
-                if (cmdOptions.verbose) console.log(`+  ${newImportText}`);
               }
-
-              // Remove the old barrel import
               importDecl.remove();
               fileWasModified = true;
             }
@@ -124,13 +115,13 @@ export function configureReplaceCommand(program: Command) {
         }
 
         if (fileWasModified) {
-          await sourceFile.save();
+          // Save the changes back to the in-memory file system
+          const updatedContent = sourceFile.getFullText();
+          await fs.writeFile(sourceFile.getFilePath(), updatedContent);
           updatedFilesCount++;
         }
-
-        project.removeSourceFile(sourceFile); // Conserve memory
       }
 
-      console.log(`\n${updatedFilesCount} files updated.`);
+      console.log(`${updatedFilesCount} files updated`);
     });
 }

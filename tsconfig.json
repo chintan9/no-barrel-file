@@ -10,6 +10,12 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*", "src/lib/parser.ts", "src/lib/ignorer.ts", "src/index.ts"],
+  "include": [
+    "src/**/*",
+    "src/lib/parser.ts",
+    "src/lib/ignorer.ts",
+    "src/index.ts",
+    "__tests__"
+  ],
   "exclude": ["node_modules"]
 }

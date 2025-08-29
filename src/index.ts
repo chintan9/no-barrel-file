@@ -4,16 +4,18 @@ import { Command } from "commander";
 import { configureCountCommand } from "./commands/count";
 import { configureDisplayCommand } from "./commands/display";
 import { configureReplaceCommand } from "./commands/replace";
+// Assuming package.json is in the root, one level up from src/
 import packageJson from "../package.json";
 
-const program = new Command();
+// EXPORT this constant
+export const program = new Command();
 
 program
   .name("no-barrel-file")
   .description("A CLI tool to find, count, and replace barrel file imports.")
   .version(packageJson.version);
 
-// Global flags (equivalent to cmd/root.go init())
+// Global flags
 program
   .option(
     "-r, --root-path <path>",
@@ -41,4 +43,7 @@ configureCountCommand(program);
 configureDisplayCommand(program);
 configureReplaceCommand(program);
 
-program.parse(process.argv);
+// This allows the file to be run directly from the command line
+if (require.main === module) {
+  program.parse(process.argv);
+}
