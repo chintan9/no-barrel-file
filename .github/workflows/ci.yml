@@ -27,9 +27,9 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          echo "💫 Running tests with coverage..."
-          npm test -- --coverage --coverageReporters="json-summary" --coverageReporters="text"
-          echo "# 📊 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          cat coverage/coverage-summary.json | jq -r '"Statements: \(.total.statements.pct)%\nBranches: \(.total.branches.pct)%\nFunctions: \(.total.functions.pct)%\nLines: \(.total.lines.pct)%"' >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "💫 Running tests with coverage..."
+            npm test -- --coverage --coverageReporters="json-summary" --coverageReporters="text" --coverageThreshold='{}'
+            echo "# 📊 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            cat coverage/coverage-summary.json | jq -r '"Statements: \(.total.statements.pct)%\nBranches: \(.total.branches.pct)%\nFunctions: \(.total.functions.pct)%\nLines: \(.total.lines.pct)%"' >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
