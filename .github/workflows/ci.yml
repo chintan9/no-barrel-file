@@ -20,6 +20,9 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    outputs:
+      coverage: ${{ steps.coverage.outputs.summary }}
+
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
@@ -40,11 +43,31 @@ jobs:
         shell: bash
         run: |
           echo "💫 Running tests with coverage..."
-          npm test -- --coverage --coverageReporters="json-summary" --coverageReporters="text" --coverageThreshold='{}'
+          npm test -- --coverage --coverageReporters="json-summary" --coverageThreshold='{}'
 
-          echo "# 📊 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat coverage/coverage-summary.json | jq -r \
-            '"Statements: (.total.statements.pct)%\nBranches: (.total.branches.pct)%\nFunctions: (.total.functions.pct)%\nLines: (.total.lines.pct)%"' \
-            >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+      - name: 📊 Extract coverage summary
+        id: coverage
+        shell: bash
+        run: |
+          summary=$(cat coverage/coverage-summary.json | jq -r \
+            '"Statements: \(.total.statements.pct)% | Branches: \(.total.branches.pct)% | Functions: \(.total.functions.pct)% | Lines: \(.total.lines.pct)%"')
+          echo "summary=$summary" >> $GITHUB_OUTPUT
+
+  coverage-summary:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - name: 📊 Generate coverage table
+        run: |
+          echo "# ✅ Combined Coverage Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| OS | Node.js | Coverage |" >> $GITHUB_STEP_SUMMARY
+          echo "|----|---------|----------|" >> $GITHUB_STEP_SUMMARY
+
+          # loop over all matrix jobs
+          for job in $(jq -r 'keys[]' <<< '${{ toJson(needs) }}'); do
+            os=$(jq -r ".\"$job\".outputs.os // empty" <<< '${{ toJson(needs) }}')
+            node=$(jq -r ".\"$job\".outputs.node // empty" <<< '${{ toJson(needs) }}')
+            summary=$(jq -r ".\"$job\".outputs.coverage // empty" <<< '${{ toJson(needs) }}')
+            echo "| ${job#build-and-test-} | ${node:-n/a} | ${summary:-n/a} |" >> $GITHUB_STEP_SUMMARY
+          done
