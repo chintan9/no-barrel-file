@@ -10,7 +10,7 @@ module.exports = {
   transform: {
     "^.+\\.tsx?$": ["ts-jest", { tsconfig: "tsconfig.json" }]
   },
-  // FIX: Use <rootDir> to ensure we only ignore the local folders
+  // FIX: Explicitly ignore node_modules and dist relative to root
   testPathIgnorePatterns: [
     "<rootDir>/node_modules/",
     "<rootDir>/dist/"

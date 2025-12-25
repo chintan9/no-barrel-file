@@ -14,22 +14,13 @@ export function configureReplaceCommand(program: Command) {
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
 
-      // **FIX:** Add a check to ensure the required option is provided.
       if (!cmdOptions.aliasConfigPath) {
-        console.error(
-          "Error: The --alias-config-path <path> option is required for the replace command."
-        );
-        process.exit(1); // Exit with an error code
+        console.error("Error: The --alias-config-path <path> option is required.");
+        process.exit(1);
       }
 
-      const tsConfigPath = path.join(
-        globalOptions.rootPath,
-        cmdOptions.aliasConfigPath
-      );
-
-      const project = new Project({
-        tsConfigFilePath: tsConfigPath
-      });
+      const tsConfigPath = path.join(globalOptions.rootPath, cmdOptions.aliasConfigPath);
+      const project = new Project({ tsConfigFilePath: tsConfigPath });
 
       let updatedFilesCount = 0;
       const projectSourceFiles = project.getSourceFiles();
@@ -42,51 +33,35 @@ export function configureReplaceCommand(program: Command) {
           const importSourceFile = importDecl.getModuleSpecifierSourceFile();
           if (!importSourceFile) continue;
 
-          if (
-            path.basename(importSourceFile.getFilePath()).startsWith("index.")
-          ) {
-            const isBarrel = importSourceFile
-              .getExportDeclarations()
-              .some((d) => d.getModuleSpecifier());
+          if (path.basename(importSourceFile.getFilePath()).startsWith("index.")) {
+            const isBarrel = importSourceFile.getExportDeclarations().some((d) => !!d.getModuleSpecifier());
             if (!isBarrel) continue;
 
             const newImports: { [key: string]: string[] } = {};
             for (const named of importDecl.getNamedImports()) {
               const symbol = named.getSymbolOrThrow();
               const aliasedSymbol = symbol.getAliasedSymbol() || symbol;
-              const originalSource = aliasedSymbol
-                .getDeclarations()[0]
-                ?.getSourceFile();
-              if (
-                !originalSource ||
-                originalSource.getFilePath() === importSourceFile.getFilePath()
-              )
-                continue;
+              const declaration = aliasedSymbol.getDeclarations()[0];
+              if (!declaration) continue;
 
-              const originalFilePath = originalSource.getFilePath();
-              const relativePath = path.relative(
-                path.dirname(sourceFile.getFilePath()),
-                originalFilePath
-              );
-              const importPath = `./${relativePath}`.replace(
-                /\.(ts|tsx|js|jsx)$/,
-                ""
-              );
+              const originalSource = declaration.getSourceFile();
+              if (originalSource.getFilePath() === importSourceFile.getFilePath()) continue;
+
+              let relativePath = path.relative(path.dirname(sourceFile.getFilePath()), originalSource.getFilePath());
+              
+              // FIX: Ensure import strings use forward slashes (Web/TS standard)
+              let importPath = relativePath.replace(/\.(ts|tsx|js|jsx)$/, "").replace(/\\/g, '/');
+              if (!importPath.startsWith(".")) importPath = `./${importPath}`;
 
               if (!newImports[importPath]) newImports[importPath] = [];
               const importName = named.getName();
               const alias = named.getAliasNode()?.getText();
-              newImports[importPath].push(
-                alias ? `${importName} as ${alias}` : importName
-              );
+              newImports[importPath].push(alias ? `${importName} as ${alias}` : importName);
             }
 
             if (Object.keys(newImports).length > 0) {
               for (const [newPath, names] of Object.entries(newImports)) {
-                sourceFile.addImportDeclaration({
-                  moduleSpecifier: newPath,
-                  namedImports: names
-                });
+                sourceFile.addImportDeclaration({ moduleSpecifier: newPath, namedImports: names });
               }
               importDecl.remove();
               fileWasModified = true;
@@ -99,7 +74,6 @@ export function configureReplaceCommand(program: Command) {
           updatedFilesCount++;
         }
       }
-
       console.log(`${updatedFilesCount} files updated`);
     });
 }

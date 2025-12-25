@@ -12,8 +12,6 @@ export class Parser {
     private ignorer: Ignorer,
     private extensions: string[]
   ) {
-    // Initialize ts-morph with an in-memory file system to prevent 
-    // unnecessary disk I/O and potential conflicts during analysis.
     this.project = new Project({
       useInMemoryFileSystem: true,
       compilerOptions: { allowJs: true, checkJs: false },
@@ -25,33 +23,27 @@ export class Parser {
       .map(e => (e.startsWith('.') ? e.slice(1) : e))
       .join(',');
     
-    // Search specifically for index files within the project
     const indexFilePattern = `**/*index.{${patternExtensions}}`;
 
+    // FIX: fast-glob requires forward slashes even on Windows
+    const normalizedRoot = this.rootPath.replace(/\\/g, '/');
+
     const indexFiles = await fg(indexFilePattern, {
-      cwd: this.rootPath,
+      cwd: normalizedRoot,
       absolute: true,
       onlyFiles: true,
     });
 
     const barrelFiles: string[] = [];
-
     if (!indexFiles) return [];
 
     for (const file of indexFiles) {
-      if (this.ignorer.ignores(file)) {
-        continue;
-      }
+      if (this.ignorer.ignores(file)) continue;
 
       try {
         const content = await fs.readFile(file, 'utf-8');
-        
-        // Load the file into the in-memory project. 
-        // 'overwrite: true' ensures we don't crash if the same file is processed twice.
         const sourceFile = this.project.createSourceFile(file, content, { overwrite: true });
         
-        // A barrel file is defined as having at least one export declaration 
-        // that points to another module (e.g., export * from './module').
         const isBarrel = sourceFile.getExportDeclarations().some(decl => {
           return !!decl.getModuleSpecifier();
         });
@@ -59,11 +51,9 @@ export class Parser {
         if (isBarrel) {
           barrelFiles.push(file);
         }
-
-        // Remove the file from the project immediately after check to keep memory usage low.
         this.project.removeSourceFile(sourceFile);
       } catch (e) {
-        // Files that cannot be read or parsed are skipped.
+        // Skip unreadable files
       }
     }
 
