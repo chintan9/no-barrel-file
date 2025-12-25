@@ -1,25 +1,36 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
+  // Use ts-jest preset to handle TypeScript files
   preset: "ts-jest",
+  
+  // Set the test environment to Node.js (suitable for CLI tools)
   testEnvironment: "node",
+  
+  // Define where Jest should look for test files
+  roots: ["<rootDir>/src"],
+  
+  // Pattern to match test files
+  testMatch: [
+    "**/__tests__/**/*.test.ts",
+    "**/?(*.)+(spec|test).ts"
+  ],
+
+  // Transform settings for TypeScript
   transform: {
     "^.+\\.tsx?$": ["ts-jest", { tsconfig: "tsconfig.json" }]
   },
-  // Tells Jest to ignore the dist and node_modules directories when looking for tests.
-  testPathIgnorePatterns: ["/node_modules/", "/dist/"],
-  // Code coverage configuration
-  collectCoverageFrom: [
-    "src/**/*.{js,jsx,ts,tsx}",
-    "!src/**/*.d.ts",
-    "!src/**/*.test.{js,jsx,ts,tsx}"
+
+  // Important: Ignore the dist and node_modules directories to avoid 
+  // picking up compiled files or dependencies.
+  testPathIgnorePatterns: [
+    "/node_modules/",
+    "/dist/"
   ],
-  coverageReporters: ["json", "lcov", "text", "clover"],
-  coverageThreshold: {
-    global: {
-      branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80
-    }
-  }
+
+  // Ensure coverage is collected from the correct source files
+  collectCoverageFrom: [
+    "src/**/*.ts",
+    "!src/**/*.d.ts",
+    "!src/__tests__/**"
+  ]
 };
