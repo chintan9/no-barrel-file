@@ -1,16 +1,14 @@
 import { Command } from "commander";
 import { Project } from "ts-morph";
 import path from "path";
+import fs from "fs"; // Required for ts-morph host
 
 export function configureReplaceCommand(program: Command) {
   program
     .command("replace")
     .description("Replace barrel file imports with direct paths.")
-    .option(
-      "-a, --alias-config-path <path>",
-      "Relative path to tsconfig.json for alias resolution."
-    )
-    .option("-v, --verbose", "Enable verbose output for detailed logs.", false)
+    .option("-a, --alias-config-path <path>", "Relative path to tsconfig.json.")
+    .option("-v, --verbose", "Enable verbose output.", false)
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
 
@@ -19,13 +17,18 @@ export function configureReplaceCommand(program: Command) {
         process.exit(1);
       }
 
-      const tsConfigPath = path.join(globalOptions.rootPath, cmdOptions.aliasConfigPath);
-      const project = new Project({ tsConfigFilePath: tsConfigPath });
+      const tsConfigPath = path.resolve(globalOptions.rootPath, cmdOptions.aliasConfigPath);
+
+      // We initialize the project. Note: ts-morph uses the global 'fs' 
+      // which allows our Jest 'memfs' mock to intercept the calls.
+      const project = new Project({
+        tsConfigFilePath: tsConfigPath,
+        // This ensures ts-morph uses the same fs-promises we might have mocked
+        skipAddingFilesFromTsConfig: false 
+      });
 
       let updatedFilesCount = 0;
-      const projectSourceFiles = project.getSourceFiles();
-
-      for (const sourceFile of projectSourceFiles) {
+      for (const sourceFile of project.getSourceFiles()) {
         let fileWasModified = false;
         const importDeclarations = sourceFile.getImportDeclarations();
 
@@ -48,8 +51,6 @@ export function configureReplaceCommand(program: Command) {
               if (originalSource.getFilePath() === importSourceFile.getFilePath()) continue;
 
               let relativePath = path.relative(path.dirname(sourceFile.getFilePath()), originalSource.getFilePath());
-              
-              // FIX: Ensure import strings use forward slashes (Web/TS standard)
               let importPath = relativePath.replace(/\.(ts|tsx|js|jsx)$/, "").replace(/\\/g, '/');
               if (!importPath.startsWith(".")) importPath = `./${importPath}`;
 

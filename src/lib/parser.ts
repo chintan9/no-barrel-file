@@ -24,8 +24,6 @@ export class Parser {
       .join(',');
     
     const indexFilePattern = `**/*index.{${patternExtensions}}`;
-
-    // FIX: fast-glob requires forward slashes even on Windows
     const normalizedRoot = this.rootPath.replace(/\\/g, '/');
 
     const indexFiles = await fg(indexFilePattern, {
@@ -42,18 +40,18 @@ export class Parser {
 
       try {
         const content = await fs.readFile(file, 'utf-8');
-        const sourceFile = this.project.createSourceFile(file, content, { overwrite: true });
+        // Standardize path for ts-morph in-memory FS
+        const normalizedFile = file.replace(/\\/g, '/');
+        const sourceFile = this.project.createSourceFile(normalizedFile, content, { overwrite: true });
         
-        const isBarrel = sourceFile.getExportDeclarations().some(decl => {
-          return !!decl.getModuleSpecifier();
-        });
+        const isBarrel = sourceFile.getExportDeclarations().some(decl => !!decl.getModuleSpecifier());
 
         if (isBarrel) {
           barrelFiles.push(file);
         }
         this.project.removeSourceFile(sourceFile);
       } catch (e) {
-        // Skip unreadable files
+        // Silently skip
       }
     }
 
