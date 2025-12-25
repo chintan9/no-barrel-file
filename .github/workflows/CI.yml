@@ -39,7 +39,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: 🏗️ Build project
-        run: pnpm run build --if-present
+        run: pnpm run build 
 
       - name: 🧪 Run tests with coverage
         shell: bash
