@@ -4,16 +4,19 @@ import { Command } from "commander";
 import { configureCountCommand } from "./commands/count";
 import { configureDisplayCommand } from "./commands/display";
 import { configureReplaceCommand } from "./commands/replace";
-// Assuming package.json is in the root, one level up from src/
-import packageJson from "../package.json";
+import path from "path";
 
-// EXPORT this constant
+// Using 'require' ensures TypeScript does not include the root directory 
+// in the 'src' compilation scope, which fixes the 'rootDir' build error.
+const pkg = require(path.join(__dirname, "../package.json"));
+
+// Export the program constant for integration testing
 export const program = new Command();
 
 program
   .name("no-barrel-file")
   .description("A CLI tool to find, count, and replace barrel file imports.")
-  .version(packageJson.version);
+  .version(pkg.version);
 
 // Global flags
 program
@@ -38,12 +41,12 @@ program
     ".gitignore"
   );
 
-// Register commands
+// Register sub-commands
 configureCountCommand(program);
 configureDisplayCommand(program);
 configureReplaceCommand(program);
 
-// This allows the file to be run directly from the command line
+// Execute the CLI
 if (require.main === module) {
   program.parse(process.argv);
 }
