@@ -18,14 +18,12 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
-    outputs:
-      coverage: ${{ steps.coverage.outputs.summary }}
-
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
           version: 10
 
@@ -43,33 +41,21 @@ jobs:
 
       - name: 🧪 Run tests with coverage
         shell: bash
+        # FIX: Simplified the command and used double quotes for the threshold JSON
         run: |
-          echo "💫 Running tests with coverage..."
-          pnpm test -- --coverage --coverageReporters="json-summary" --coverageThreshold=\'{}\'
+          pnpm test --coverage --coverageReporters="json-summary" --coverageThreshold="{}"
 
       - name: 📊 Extract coverage summary
         id: coverage
         shell: bash
         run: |
-          summary=$(cat coverage/coverage-summary.json | jq -r \
-            \'"Statements: \(.total.statements.pct)% | Branches: \(.total.branches.pct)% | Functions: \(.total.functions.pct)% | Lines: \(.total.lines.pct)%"\')
-          echo "summary=$summary" >> $GITHUB_OUTPUT
-
-  coverage-summary:
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    steps:
-      - name: 📊 Generate coverage table
-        run: |
-          echo "# ✅ Combined Coverage Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| OS | Node.js | Coverage |" >> $GITHUB_STEP_SUMMARY
-          echo "|----|---------|----------|" >> $GITHUB_STEP_SUMMARY
-
-          # loop over all matrix jobs
-          for job in $(jq -r \'keys[]\' <<< \'${{ toJson(needs) }}\'); do
-            os=$(jq -r ".\\"$job\\".outputs.os // empty" <<< \'${{ toJson(needs) }}\')
-            node=$(jq -r ".\\"$job\\".outputs.node // empty" <<< \'${{ toJson(needs) }}\')
-            summary=$(jq -r ".\\"$job\\".outputs.coverage // empty" <<< \'${{ toJson(needs) }}\')
-            echo "| ${job#build-and-test-} | ${node:-n/a} | ${summary:-n/a} |" >> $GITHUB_STEP_SUMMARY
-          done
+          # Use jq to extract data and write directly to the GitHub Step Summary
+          SUMMARY=$(cat coverage/coverage-summary.json | jq -r '.total | "Statements: \(.statements.pct)% | Branches: \(.branches.pct)% | Functions: \(.functions.pct)% | Lines: \(.lines.pct)%"')
+          
+          echo "### 📊 Coverage Results (${{ matrix.os }} / Node ${{ matrix.node-version }})" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Percentage |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Statements | $(cat coverage/coverage-summary.json | jq -r '.total.statements.pct')% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branches | $(cat coverage/coverage-summary.json | jq -r '.total.branches.pct')% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Functions | $(cat coverage/coverage-summary.json | jq -r '.total.functions.pct')% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lines | $(cat coverage/coverage-summary.json | jq -r '.total.lines.pct')% |" >> $GITHUB_STEP_SUMMARY
