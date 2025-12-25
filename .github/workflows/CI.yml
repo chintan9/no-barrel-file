@@ -1,5 +1,3 @@
-name: CI
-
 on:
   push:
     branches: [main]
@@ -27,30 +25,34 @@ jobs:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: 🟢 Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: npm
+          cache: pnpm
 
       - name: 📦 Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: 🏗️ Build project
-        run: npm run build --if-present
+        run: pnpm run build --if-present
 
       - name: 🧪 Run tests with coverage
         shell: bash
         run: |
           echo "💫 Running tests with coverage..."
-          npm test -- --coverage --coverageReporters="json-summary" --coverageThreshold='{}'
+          pnpm test -- --coverage --coverageReporters="json-summary" --coverageThreshold=\'{}\'
 
       - name: 📊 Extract coverage summary
         id: coverage
         shell: bash
         run: |
           summary=$(cat coverage/coverage-summary.json | jq -r \
-            '"Statements: \(.total.statements.pct)% | Branches: \(.total.branches.pct)% | Functions: \(.total.functions.pct)% | Lines: \(.total.lines.pct)%"')
+            \'"Statements: \(.total.statements.pct)% | Branches: \(.total.branches.pct)% | Functions: \(.total.functions.pct)% | Lines: \(.total.lines.pct)%"\')
           echo "summary=$summary" >> $GITHUB_OUTPUT
 
   coverage-summary:
@@ -65,9 +67,9 @@ jobs:
           echo "|----|---------|----------|" >> $GITHUB_STEP_SUMMARY
 
           # loop over all matrix jobs
-          for job in $(jq -r 'keys[]' <<< '${{ toJson(needs) }}'); do
-            os=$(jq -r ".\"$job\".outputs.os // empty" <<< '${{ toJson(needs) }}')
-            node=$(jq -r ".\"$job\".outputs.node // empty" <<< '${{ toJson(needs) }}')
-            summary=$(jq -r ".\"$job\".outputs.coverage // empty" <<< '${{ toJson(needs) }}')
+          for job in $(jq -r \'keys[]\' <<< \'${{ toJson(needs) }}\'); do
+            os=$(jq -r ".\\"$job\\".outputs.os // empty" <<< \'${{ toJson(needs) }}\')
+            node=$(jq -r ".\\"$job\\".outputs.node // empty" <<< \'${{ toJson(needs) }}\')
+            summary=$(jq -r ".\\"$job\\".outputs.coverage // empty" <<< \'${{ toJson(needs) }}\')
             echo "| ${job#build-and-test-} | ${node:-n/a} | ${summary:-n/a} |" >> $GITHUB_STEP_SUMMARY
           done
