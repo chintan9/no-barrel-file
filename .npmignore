@@ -1,0 +1,12 @@
+# Ignore the GitHub Action bundle (NPM users don't need this)
+dist/action/
+
+# Ignore source files (optional, as they are compiled to dist)
+src/
+tsconfig.json
+jest.config.js
+.github/
+
+# Ignore build/test logs
+coverage/
+*.log
