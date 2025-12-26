@@ -8,7 +8,7 @@ import path from "path";
 
 // Using 'require' ensures TypeScript does not include the root directory 
 // in the 'src' compilation scope, which fixes the 'rootDir' build error.
-const pkg = require(path.join(__dirname, "../package.json"));
+const pkg = require("../package.json");
 
 // Export the program constant for integration testing
 export const program = new Command();
