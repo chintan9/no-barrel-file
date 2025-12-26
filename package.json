@@ -7,9 +7,10 @@
     "no-barrel-file": "dist/index.js"
   },
   "scripts": {
-    "start": "ts-node src/index.ts",
     "build": "tsc",
+    "bundle": "ncc build src/action.ts -o dist/action --license licenses.txt",
     "test": "jest",
+    "start": "ts-node src/index.ts",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -22,6 +23,7 @@
   "author": "chintan9",
   "license": "MIT",
   "dependencies": {
+    "@actions/core": "^2.0.1",
     "commander": "^12.1.0",
     "fast-glob": "^3.3.2",
     "ignore": "^5.3.1",
@@ -29,11 +31,12 @@
     "ts-morph": "^22.0.0"
   },
   "devDependencies": {
-    "@types/jest": "^30.0.0",
+    "@types/jest": "^29.5.12",
     "@types/node": "^20.12.12",
+    "@vercel/ncc": "^0.38.4",
     "jest": "^30.1.1",
-    "memfs": "^4.38.2",
-    "ts-jest": "^29.4.1",
+    "memfs": "^4.9.2",
+    "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
   }

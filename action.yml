@@ -1,0 +1,30 @@
+name: 'No Barrel File'
+description: 'Automatically detect and remove barrel file imports to improve tree-shaking and performance.'
+author: 'chintan9'
+branding:
+  icon: 'package'
+  color: 'orange'
+
+inputs:
+  mode:
+    description: 'The operation mode: count, display, or replace.'
+    required: false
+    default: 'display'
+  root-path:
+    description: 'Root path of the targeted project.'
+    required: false
+    default: '.'
+  extensions:
+    description: 'Comma-separated list of file extensions to process.'
+    required: false
+    default: '.ts,.js,.tsx,.jsx'
+  alias-config-path:
+    description: 'Path to tsconfig.json (Required if mode is replace).'
+    required: false
+  ignore-paths:
+    description: 'Comma-separated list of directories or files to ignore.'
+    required: false
+
+runs:
+  using: 'node20'
+  main: 'dist/action/index.js' 

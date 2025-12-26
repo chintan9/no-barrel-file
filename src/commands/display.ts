@@ -23,7 +23,9 @@ export function configureDisplayCommand(program: Command) {
       const barrelFiles = await parser.findBarrelFiles();
       console.log(`${barrelFiles.length} barrel files found`);
       for (const file of barrelFiles) {
-        console.log(path.relative(options.rootPath, file));
+        // FIX: Normalize to forward slashes for consistent CLI output across OS
+        const relativePath = path.relative(options.rootPath, file).replace(/\\/g, '/');
+        console.log(relativePath);
       }
     });
 }

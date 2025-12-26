@@ -11,11 +11,11 @@
     "resolveJsonModule": true
   },
   "include": [
-    "src/**/*",
-    "src/lib/parser.ts",
-    "src/lib/ignorer.ts",
-    "src/index.ts",
-    "src/__tests__"
+    "src/**/*"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/__tests__/*"
+  ]
 }

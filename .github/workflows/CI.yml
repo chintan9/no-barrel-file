@@ -1,0 +1,61 @@
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: ["20.x", "22.x", "24.x"]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: 🟢 Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+
+      - name: 📦 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🏗️ Build project
+        run: pnpm run build 
+
+      - name: 🧪 Run tests with coverage
+        shell: bash
+        # FIX: Simplified the command and used double quotes for the threshold JSON
+        run: |
+          pnpm test --coverage --coverageReporters="json-summary" --coverageThreshold="{}"
+
+      - name: 📊 Extract coverage summary
+        id: coverage
+        shell: bash
+        run: |
+          # Use jq to extract data and write directly to the GitHub Step Summary
+          SUMMARY=$(cat coverage/coverage-summary.json | jq -r '.total | "Statements: \(.statements.pct)% | Branches: \(.branches.pct)% | Functions: \(.functions.pct)% | Lines: \(.lines.pct)%"')
+          
+          echo "### 📊 Coverage Results (${{ matrix.os }} / Node ${{ matrix.node-version }})" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Percentage |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Statements | $(cat coverage/coverage-summary.json | jq -r '.total.statements.pct')% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branches | $(cat coverage/coverage-summary.json | jq -r '.total.branches.pct')% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Functions | $(cat coverage/coverage-summary.json | jq -r '.total.functions.pct')% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lines | $(cat coverage/coverage-summary.json | jq -r '.total.lines.pct')% |" >> $GITHUB_STEP_SUMMARY

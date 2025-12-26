@@ -29,4 +29,34 @@ describe("Ignorer Library", () => {
     expect(ignorer.ignores("/src/legacy.js")).toBe(true);
     expect(ignorer.ignores("/config/secrets.json")).toBe(true);
   });
+
+  it("should function correctly when .gitignore does not exist", async () => {
+    vol.fromJSON({
+      "/src/index.ts": "file content",
+      "/config/secrets.json": "file content"
+    });
+
+    const ignorer = await Ignorer.create(
+      "/",
+      ["config"],
+      ".gitignore-does-not-exist"
+    );
+
+    expect(ignorer.ignores("/src/index.ts")).toBe(false);
+    expect(ignorer.ignores("/config/secrets.json")).toBe(true);
+  });
+
+  it("should correctly handle empty or whitespace-only ignore paths", async () => {
+    vol.fromJSON({
+      "/.gitignore": "node_modules",
+      "/src/index.ts": "file content",
+      "/node_modules/jest/index.js": "file content"
+    });
+
+    // Pass an empty string and a whitespace string which should be filtered out
+    const ignorer = await Ignorer.create("/", ["", "  "], ".gitignore");
+
+    expect(ignorer.ignores("/src/index.ts")).toBe(false);
+    expect(ignorer.ignores("/node_modules/jest/index.js")).toBe(true);
+  });
 });

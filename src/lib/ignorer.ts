@@ -22,22 +22,30 @@ export class Ignorer {
 
   private async loadGitignore(gitIgnorePath: string): Promise<void> {
     try {
-      const fullPath = path.join(this.rootPath, gitIgnorePath);
+      const fullPath = path.resolve(this.rootPath, gitIgnorePath);
       const content = await fs.readFile(fullPath, "utf-8");
       this.ig.add(content);
     } catch (error) {
-      // Gitignore file might not exist, which is acceptable.
+      // Skip if .gitignore doesn't exist
     }
   }
 
   private addManualIgnores(ignorePaths: string[]): void {
     if (ignorePaths && ignorePaths.length > 0) {
-      this.ig.add(ignorePaths.filter((p) => p.trim() !== ""));
+      const validPaths = ignorePaths
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0);
+      
+      this.ig.add(validPaths);
     }
   }
 
   public ignores(filePath: string): boolean {
     const relativePath = path.relative(this.rootPath, filePath);
-    return this.ig.ignores(relativePath);
+    if (!relativePath) return false;
+    
+    // FIX: Normalize backslashes to forward slashes for the 'ignore' library
+    const posixPath = relativePath.replace(/\\/g, '/');
+    return this.ig.ignores(posixPath);
   }
 }

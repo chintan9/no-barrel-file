@@ -1,0 +1,29 @@
+name: Remove Barrel Files
+
+on:
+  workflow_dispatch: # Allows manual trigger
+  pull_request: # Runs on PRs
+
+permissions:
+  contents: write # REQUIRED to commit changes back
+
+jobs:
+  fix-barrels:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Step 1: Run your custom action
+      - name: Run No Barrel File Action
+        uses: ./ # uses: chintan9/no-barrel-file@main (when published)
+        with:
+          mode: 'replace'
+          alias-config-path: 'tsconfig.json'
+          extensions: '.ts,.tsx'
+
+      # Step 2: Auto-commit changes if files were modified
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "refactor: remove barrel file imports"
+          branch: ${{ github.head_ref }}

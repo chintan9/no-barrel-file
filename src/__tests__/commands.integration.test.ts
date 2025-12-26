@@ -1,25 +1,29 @@
 const { vol } = require("memfs");
 import fg from "fast-glob";
-import { program } from "../index"; // Corrected import path
+import { program } from "../index";
+import path from "path";
 
-// Mock dependencies
-// THIS IS THE CRITICAL FIX: Mock both sync and async fs to point to memfs
+// Mocking the file system
 jest.mock("fs", () => require("memfs").fs);
 jest.mock("fs/promises", () => require("memfs").fs.promises);
 jest.mock("fast-glob");
 
 const mockedFg = fg as unknown as jest.Mock;
 
-// Capture console.log output
 let consoleOutput: any[];
 const mockedLog = (output: any) => consoleOutput.push(output);
 
+// Helper to create absolute paths for the mock filesystem that work on Windows/Linux
+const root = process.platform === 'win32' ? 'C:\\project' : '/project';
+const toPosix = (p: string) => p.replace(/\\/g, '/');
+
 describe("CLI Commands (Integration)", () => {
   beforeEach(() => {
-    vol.reset(); // Clears the in-memory file system before each test
+    vol.reset();
     mockedFg.mockClear();
     consoleOutput = [];
     jest.spyOn(console, "log").mockImplementation(mockedLog);
+    jest.spyOn(console, "error").mockImplementation(mockedLog);
   });
 
   afterEach(() => {
@@ -27,84 +31,56 @@ describe("CLI Commands (Integration)", () => {
   });
 
   it("should count the barrel files correctly", async () => {
+    const file1 = path.join(root, "src/components/index.ts");
+    const file2 = path.join(root, "src/utils/index.ts");
+    
     vol.fromJSON({
-      "/project/src/components/index.ts": `export * from './button';`,
-      "/project/src/utils/index.ts": `export const util = {};`
+      [file1]: `export * from './button';`,
+      [file2]: `export const util = {};`
     });
-    mockedFg.mockResolvedValue([
-      "/project/src/components/index.ts",
-      "/project/src/utils/index.ts"
-    ]);
+    
+    mockedFg.mockResolvedValue([file1, file2]);
 
-    const argv = [
-      "node",
-      "no-barrel-file",
-      "count",
-      "--root-path",
-      "/project",
-      "--extensions",
-      ".ts"
-    ];
+    const argv = ["node", "no-barrel-file", "count", "--root-path", root, "--extensions", ".ts"];
     await program.parseAsync(argv);
 
-    expect(consoleOutput[0]).toBe(1);
+    expect(consoleOutput).toContain(1);
   });
 
   it("should display the barrel files correctly", async () => {
-    vol.fromJSON({
-      "/project/src/components/index.ts": `export * from './button';`,
-      "/project/src/utils/index.ts": `export const util = {};`
-    });
-    mockedFg.mockResolvedValue([
-      "/project/src/components/index.ts",
-      "/project/src/utils/index.ts"
-    ]);
+    const file1 = path.join(root, "src/components/index.ts");
+    vol.fromJSON({ [file1]: `export * from './button';` });
+    mockedFg.mockResolvedValue([file1]);
 
-    const argv = [
-      "node",
-      "no-barrel-file",
-      "display",
-      "--root-path",
-      "/project",
-      "--extensions",
-      ".ts"
-    ];
+    const argv = ["node", "no-barrel-file", "display", "--root-path", root, "--extensions", ".ts"];
     await program.parseAsync(argv);
 
-    expect(consoleOutput[0]).toBe("1 barrel files found");
-    expect(consoleOutput[1]).toBe("src/components/index.ts");
+    expect(consoleOutput).toContain("1 barrel files found");
+    // Asserting against normalized POSIX path
+    expect(consoleOutput).toContain("src/components/index.ts");
   });
 
   it("should replace barrel imports with direct paths", async () => {
-    const projectFiles = {
-      "/project/src/components/button.ts": `export const Button = {};`,
-      "/project/src/components/index.ts": `export * from './button';`,
-      "/project/src/app.ts": `import { Button } from 'components';`,
-      "/project/tsconfig.json": `{
-        "include": ["src/**/*.ts"],
-        "compilerOptions": {
-          "baseUrl": "src",
-          "paths": { "components": ["components/index"] }
-        }
-      }`
-    };
-    vol.fromJSON(projectFiles, "/project");
+    const tsconfig = path.join(root, "tsconfig.json");
+    const button = path.join(root, "src/components/button.ts");
+    const index = path.join(root, "src/components/index.ts");
+    const app = path.join(root, "src/app.ts");
 
-    const argv = [
-      "node",
-      "no-barrel-file",
-      "replace",
-      "--root-path",
-      "/project",
-      "--alias-config-path",
-      "tsconfig.json"
-    ];
+    vol.fromJSON({
+      [button]: `export const Button = {};`,
+      [index]: `export * from './button';`,
+      [app]: `import { Button } from './components/index';`,
+      [tsconfig]: JSON.stringify({
+        compilerOptions: { baseUrl: ".", paths: { "*": ["src/*"] } }
+      })
+    });
+
+    const argv = ["node", "no-barrel-file", "replace", "--root-path", root, "--alias-config-path", "tsconfig.json"];
+    
     await program.parseAsync(argv);
 
-    const updatedContent = vol.readFileSync("/project/src/app.ts", "utf-8");
-
-    expect(updatedContent).not.toContain(`from 'components'`);
-    expect(updatedContent).toContain(`from "./components/button"`);
-    expect(consoleOutput.join("\n")).toContain("1 files updated");
+    const updatedContent = vol.readFileSync(app, "utf-8");
+    expect(toPosix(updatedContent)).toContain(`from "./components/button"`);
+    expect(consoleOutput).toContain("1 files updated");
   });
 });

@@ -2,9 +2,22 @@
 module.exports = {
   preset: "ts-jest",
   testEnvironment: "node",
+  roots: ["<rootDir>/src"],
+  testMatch: [
+    "**/__tests__/**/*.test.ts",
+    "**/?(*.)+(spec|test).ts"
+  ],
   transform: {
     "^.+\\.tsx?$": ["ts-jest", { tsconfig: "tsconfig.json" }]
   },
-  // ADD THIS LINE: Tells Jest to ignore the dist and node_modules directories when looking for tests.
-  testPathIgnorePatterns: ["/node_modules/", "/dist/"]
+  // FIX: Explicitly ignore node_modules and dist relative to root
+  testPathIgnorePatterns: [
+    "<rootDir>/node_modules/",
+    "<rootDir>/dist/"
+  ],
+  collectCoverageFrom: [
+    "src/**/*.ts",
+    "!src/**/*.d.ts",
+    "!src/__tests__/**"
+  ]
 };

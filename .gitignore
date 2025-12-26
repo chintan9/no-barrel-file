@@ -80,7 +80,6 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
 
 # Gatsby files
 .cache/
@@ -141,8 +140,6 @@ vite.config.ts.timestamp-*
 # Dependencies
 /node_modules
 
-# Build output
-/dist
 
 # Logs
 npm-debug.log*
